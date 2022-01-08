@@ -1,52 +1,43 @@
 import { ethers } from 'ethers'
-import FKT_ABI from '@/lib/contracts/abi/FKT.json'
-import {
-  Web3Provider,
-  JsonRpcProvider,
-  Network,
-} from '@ethersproject/providers'
-import { TransactionResponse } from '@ethersproject/abstract-provider'
+import { Network } from '@ethersproject/providers'
+import { useLocalStorage } from '@vueuse/core'
+import web3 from '@/lib/web3'
 
-interface BlockData {
+interface BlockDataType {
   account: string
   blockNumber: number
   balance: string | null
-  tax: TransactionResponse | null
-  name: string
   gasPrice: string
   network: Network | null
   chainId: number | null
 }
 
-const { formatEther, parseEther } = ethers.utils
+export interface StroageType {
+  isConnected: boolean
+}
+
+const { provider } = web3
 
 export default function useEthers() {
-  const data = reactive<BlockData>({
+  // Data
+  const initialData: BlockDataType = {
     account: '',
     blockNumber: 0,
     balance: '',
-    tax: null,
-    name: '',
     gasPrice: '',
     network: null,
     chainId: null,
-  })
-
-  let provider: Web3Provider | JsonRpcProvider
-  if (window.ethereum) {
-    provider = new ethers.providers.Web3Provider(window.ethereum)
-    provider.send('eth_requestAccounts', [])
-  } else {
-    const url = 'https://rinkeby.infura.io/v3/e8f885e31d304914bb5401cf66ccd9df'
-    provider = new ethers.providers.JsonRpcProvider(url)
   }
-  const signer = provider.getSigner()
+
+  const data = reactive<BlockDataType>({ ...initialData })
+  const storage = useLocalStorage<StroageType>('__xy__', {
+    isConnected: false,
+  })
 
   // Computed
   const isLogin = computed(() => !!data.account)
 
   // Methods
-
   const fetchAccount = async () => {
     const accounts = await provider.listAccounts()
     data.account = accounts[0]
@@ -58,32 +49,18 @@ export default function useEthers() {
 
   const fetchBalance = async (address: string) => {
     const balance = await provider.getBalance(address)
-    data.balance = formatEther(balance)
+    data.balance = ethers.utils.formatEther(balance)
   }
 
   const fetchGasPrice = async () => {
     const gasPrice = await provider.getGasPrice()
-    data.gasPrice = formatEther(gasPrice)
+    data.gasPrice = ethers.utils.formatEther(gasPrice)
   }
 
   const fetchNetwork = async () => {
     const network = await provider.getNetwork()
     data.network = network
     data.chainId = network.chainId
-  }
-
-  const sendTransaction = async (to: string, amount: string) => {
-    data.tax = await signer.sendTransaction({
-      to,
-      value: parseEther(amount),
-    })
-  }
-
-  const fetchFKTToken = async () => {
-    const abi = FKT_ABI
-    const address = '0x9394a0686827895d15DEe84aAa9465097907A380'
-    const FKTContract = new ethers.Contract(address, abi, provider)
-    data.name = await FKTContract.name()
   }
 
   const fetchAllData = async (address: string) => {
@@ -96,6 +73,7 @@ export default function useEthers() {
     ])
   }
 
+  // Watcher
   const handleAccountsChanged = (accounts: Array<string>) => {
     data.account = accounts[0]
   }
@@ -105,7 +83,11 @@ export default function useEthers() {
   }
 
   if (window.ethereum) {
-    onMounted(async () => {
+    watchEffect(async () => {
+      if (!storage.value.isConnected) {
+        Object.assign(data, { ...initialData })
+        return
+      }
       await fetchAccount()
       await fetchAllData(data.account)
       window.ethereum.on('accountsChanged', handleAccountsChanged)
@@ -114,29 +96,16 @@ export default function useEthers() {
 
     onBeforeUnmount(() => {
       window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+      window.ethereum.removeListener('chainChanged', handleChainChanged)
     })
   }
 
   return {
     // Data
-    data,
+    storage,
     ...toRefs(data),
 
     // Computed
     isLogin,
-
-    // Fetch Block Data
-    fetchAllData,
-    fetchAccount,
-    fetchBlock,
-    fetchBalance,
-    fetchGasPrice,
-    fetchNetwork,
-
-    // Set Block Data
-    sendTransaction,
-
-    // TBA
-    fetchFKTToken,
   }
 }
