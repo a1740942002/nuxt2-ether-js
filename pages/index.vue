@@ -1,13 +1,14 @@
 <template lang="pug">
   .some-container
-    .logout-container(v-if="isLogin") {{account}} | {{chainId}}
+    .logout-container(v-if="isLogin") {{account}} | {{chainId}} | {{storage}}
       h1 balance: {{balance}}
       button(@click="logout") Logout
-    button(
-      v-else
-      @click="login"
-    ) Login
 
+    .login-container(v-else)
+      h1 Soory, I have to Login.
+      button(  
+        @click="login"
+      ) Login
 </template>
 
 <script lang="ts">
@@ -30,10 +31,10 @@ export default defineComponent({
     const balance = inject(injectBalance)!
 
     const login = async () => {
-      storage.value.isConnected = true
+      storage.value.isAutoConnected = true
     }
     const logout = async () => {
-      storage.value.isConnected = false
+      storage.value.isAutoConnected = false
     }
 
     return {
@@ -41,6 +42,7 @@ export default defineComponent({
       balance,
       chainId,
       isLogin,
+      storage,
       login,
       logout,
     }

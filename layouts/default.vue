@@ -1,5 +1,7 @@
 <template lang="pug">
-  Nuxt
+  .nuxt-container
+    h1.error Error: {{errorMessages}}
+    Nuxt
 </template>
 
 <script lang="ts">
@@ -16,14 +18,22 @@ export default defineComponent({
   components: {},
   props: {},
   setup() {
-    const { storage, isLogin, balance, account, chainId } = useEthers()
+    const { storage, isLogin, balance, account, chainId, errorMessages } =
+      useEthers()
     provide(injectStorage, storage)
     provide(injectAccount, account)
     provide(injectChainId, chainId)
     provide(injectIsLogin, isLogin)
     provide(injectBalance, balance)
 
-    return {}
+    return {
+      errorMessages,
+    }
   },
 })
 </script>
+
+<style lang="sass" scoped>
+.error
+  @apply bg-red-500
+</style>

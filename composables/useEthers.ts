@@ -10,10 +10,33 @@ interface BlockDataType {
   gasPrice: string
   network: Network | null
   chainId: number | null
+  errorMessages: string[]
 }
 
 export interface StroageType {
-  isConnected: boolean
+  isAutoConnected: boolean
+  chainId: string | number
+}
+
+interface ProviderMessage {
+  type: string
+  data: unknown
+}
+
+interface ProviderRpcError extends Error {
+  message: string
+  code: number
+  data?: unknown
+}
+
+interface ConnectInfo {
+  chainId: string
+}
+
+interface MetaMaskError {
+  code: number
+  message: string
+  stack?: string
 }
 
 export default function useEthers() {
@@ -25,11 +48,13 @@ export default function useEthers() {
     gasPrice: '',
     network: null,
     chainId: null,
+    errorMessages: [],
   }
 
   const data = reactive<BlockDataType>({ ...initialData })
   const storage = useLocalStorage<StroageType>('__xy__', {
-    isConnected: false,
+    isAutoConnected: false,
+    chainId: '',
   })
 
   // Computed
@@ -38,56 +63,52 @@ export default function useEthers() {
   // Methods
   const fetchAccount = async () => {
     try {
-      const provider = createProvider()
+      const provider = await createProvider()
       const accounts = await provider.listAccounts()
       data.account = accounts[0]
+      return accounts[0]
     } catch (error) {
-      console.log('FETCH_ACCOUNT_ERROR', error)
       return Promise.reject(error)
     }
   }
 
   const fetchBlock = async () => {
     try {
-      const provider = createProvider()
+      const provider = await createProvider()
       data.blockNumber = await provider.getBlockNumber()
     } catch (error) {
-      console.log('FETCH_BLOCK_ERROR', error)
       return Promise.reject(error)
     }
   }
 
   const fetchBalance = async (address: string) => {
     try {
-      const provider = createProvider()
-
+      const provider = await createProvider()
       const balance = await provider.getBalance(address)
       data.balance = ethers.utils.formatEther(balance)
     } catch (error) {
-      console.log('FETCH_BALANCE_ERROR', error)
       return Promise.reject(error)
     }
   }
 
   const fetchGasPrice = async () => {
     try {
-      const provider = createProvider()
+      const provider = await createProvider()
       const gasPrice = await provider.getGasPrice()
       data.gasPrice = ethers.utils.formatEther(gasPrice)
     } catch (error) {
-      console.log('FETCH_GAS_PRICE_ERROR', error)
       return Promise.reject(error)
     }
   }
 
   const fetchNetwork = async () => {
     try {
-      const provider = createProvider()
+      const provider = await createProvider()
       const network = await provider.getNetwork()
       data.network = network
       data.chainId = network.chainId
+      storage.value.chainId = network.chainId
     } catch (error) {
-      console.log('FETCH_NETWORK_ERROR', error)
       return Promise.reject(error)
     }
   }
@@ -102,38 +123,84 @@ export default function useEthers() {
         fetchNetwork(),
       ])
     } catch (error) {
-      console.log('FETCH_ALL_DATA_ERROR', error)
       return Promise.reject(error)
     }
   }
 
+  const resetData = () => {
+    Object.assign(data, { ...initialData })
+  }
+
   // Watcher
   const handleAccountsChanged = async (accounts: Array<string>) => {
-    data.account = accounts[0]
-    await fetchAllData(data.account)
+    // 如果 user 取消 permission，就不去要資料
+    if (accounts.length) {
+      data.account = accounts[0]
+      await fetchAllData(data.account)
+    } else {
+      resetData()
+    }
   }
 
   const handleChainChanged = async (chainId: string) => {
+    storage.value.chainId = chainId
     await fetchAllData(data.account)
   }
 
-  watchEffect(async () => {
-    if (!storage.value.isConnected) {
-      Object.assign(data, { ...initialData })
-      return
-    }
-    if (!window.ethereum) return
-    await fetchAccount()
-    await fetchAllData(data.account)
-    window.ethereum.on('accountsChanged', handleAccountsChanged)
-    window.ethereum.on('chainChanged', handleChainChanged)
-  })
+  const handleConnect = async (connectInfo: ConnectInfo) => {
+    console.log('CONNECT', connectInfo)
+  }
 
-  onBeforeUnmount(() => {
-    if (!window.ethereum) return
-    window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
-    window.ethereum.removeListener('chainChanged', handleChainChanged)
-  })
+  const handleDisconnect = async (error: ProviderRpcError) => {
+    console.log('DISCONNECT_ERROR', error)
+  }
+
+  const handleMessage = async (message: ProviderMessage) => {
+    console.log('MESSAGE', message)
+  }
+
+  const requestPermissions = async () => {
+    try {
+      await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      })
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x4' }],
+      })
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  // window.ethereum 代表如果使用者有 Metamask
+  if (window.ethereum) {
+    watchEffect(async () => {
+      try {
+        if (!storage.value.isAutoConnected) {
+          return resetData()
+        }
+        await requestPermissions()
+        await fetchAccount()
+        await fetchAllData(data.account)
+        window.ethereum.on('accountsChanged', handleAccountsChanged)
+        window.ethereum.on('chainChanged', handleChainChanged)
+        window.ethereum.on('connect', handleConnect)
+        window.ethereum.on('disconnect', handleDisconnect)
+        window.ethereum.on('message', handleMessage)
+      } catch (error) {
+        data.errorMessages.push((error as MetaMaskError).message)
+      }
+    })
+
+    onBeforeUnmount(() => {
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+      window.ethereum.removeListener('chainChanged', handleChainChanged)
+      window.ethereum.removeListener('connect', handleConnect)
+      window.ethereum.removeListener('disconnect', handleDisconnect)
+      window.ethereum.removeListener('message', handleMessage)
+    })
+  }
 
   return {
     // Data
