@@ -13,6 +13,7 @@ import {
   injectStorage,
   injectBalance,
   injectSetupEthers,
+  injectResetEthers,
 } from '@/lib/context'
 
 export default defineComponent({
@@ -27,6 +28,7 @@ export default defineComponent({
       chainId,
       errorMessages,
       setupEthers,
+      resetEthers,
     } = useEthers({
       rpcUrl: 'https://rinkeby.infura.io/v3/e8f885e31d304914bb5401cf66ccd9df',
     })
@@ -36,6 +38,7 @@ export default defineComponent({
     provide(injectIsLogin, isLogin)
     provide(injectBalance, balance)
     provide(injectSetupEthers, setupEthers)
+    provide(injectResetEthers, resetEthers)
 
     watch(
       errorMessages,

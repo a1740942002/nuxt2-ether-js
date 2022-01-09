@@ -19,6 +19,7 @@ import {
   injectStorage,
   injectBalance,
   injectSetupEthers,
+  injectResetEthers,
 } from '@/lib/context'
 
 export default defineComponent({
@@ -31,12 +32,14 @@ export default defineComponent({
     const storage = inject(injectStorage)!
     const balance = inject(injectBalance)!
     const setupEthers = inject(injectSetupEthers)!
+    const resetEthers = inject(injectResetEthers)!
 
     const login = async () => {
       await setupEthers()
       storage.value.isAutoConnected = true
     }
     const logout = async () => {
+      await resetEthers()
       storage.value.isAutoConnected = false
     }
 

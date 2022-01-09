@@ -133,7 +133,7 @@ export default function useEthers(config: Config) {
     }
   }
 
-  const resetData = () => {
+  const resetEthers = () => {
     Object.assign(data, { ...initialData })
   }
 
@@ -144,7 +144,7 @@ export default function useEthers(config: Config) {
       data.account = accounts[0]
       await fetchAllData(data.account)
     } else {
-      resetData()
+      resetEthers()
     }
   }
 
@@ -166,6 +166,7 @@ export default function useEthers(config: Config) {
   }
 
   const requestPermissions = async (chainId = '0x4') => {
+    if (!window.ethereum) return
     try {
       await window.ethereum.request({
         method: 'eth_requestAccounts',
@@ -180,9 +181,10 @@ export default function useEthers(config: Config) {
   }
 
   const setupEthers = async () => {
+    if (!window.ethereum) return
     try {
       if (!storage.value.isAutoConnected) {
-        return resetData()
+        return resetEthers()
       }
       await requestPermissions()
       await fetchAccount()
@@ -198,17 +200,16 @@ export default function useEthers(config: Config) {
   }
 
   // Watch Effect
-  if (window.ethereum) {
-    const stopEffect = watchEffect(setupEthers)
-    onBeforeUnmount(() => {
-      stopEffect()
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
-      window.ethereum.removeListener('chainChanged', handleChainChanged)
-      window.ethereum.removeListener('connect', handleConnect)
-      window.ethereum.removeListener('disconnect', handleDisconnect)
-      window.ethereum.removeListener('message', handleMessage)
-    })
-  }
+
+  const stopEffect = watchEffect(setupEthers)
+  onBeforeUnmount(() => {
+    stopEffect()
+    window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+    window.ethereum.removeListener('chainChanged', handleChainChanged)
+    window.ethereum.removeListener('connect', handleConnect)
+    window.ethereum.removeListener('disconnect', handleDisconnect)
+    window.ethereum.removeListener('message', handleMessage)
+  })
 
   return {
     // Data
@@ -220,5 +221,6 @@ export default function useEthers(config: Config) {
 
     // methods
     setupEthers,
+    resetEthers,
   }
 }
