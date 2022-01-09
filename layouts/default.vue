@@ -12,19 +12,39 @@ import {
   injectChainId,
   injectStorage,
   injectBalance,
+  injectSetupEthers,
 } from '@/lib/context'
 
 export default defineComponent({
   components: {},
   props: {},
   setup() {
-    const { storage, isLogin, balance, account, chainId, errorMessages } =
-      useEthers()
+    const {
+      storage,
+      isLogin,
+      balance,
+      account,
+      chainId,
+      errorMessages,
+      setupEthers,
+    } = useEthers({
+      rpcUrl: 'https://rinkeby.infura.io/v3/e8f885e31d304914bb5401cf66ccd9df',
+    })
     provide(injectStorage, storage)
     provide(injectAccount, account)
     provide(injectChainId, chainId)
     provide(injectIsLogin, isLogin)
     provide(injectBalance, balance)
+    provide(injectSetupEthers, setupEthers)
+
+    watch(
+      errorMessages,
+      () => {
+        const length = errorMessages.value.length - 1
+        console.log('notification', errorMessages.value[length])
+      },
+      { deep: true }
+    )
 
     return {
       errorMessages,

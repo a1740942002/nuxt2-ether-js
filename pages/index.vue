@@ -5,7 +5,7 @@
       button(@click="logout") Logout
 
     .login-container(v-else)
-      h1 Soory, I have to Login.
+      h1 Soory, You have to Login.
       button(  
         @click="login"
       ) Login
@@ -18,6 +18,7 @@ import {
   injectChainId,
   injectStorage,
   injectBalance,
+  injectSetupEthers,
 } from '@/lib/context'
 
 export default defineComponent({
@@ -29,8 +30,10 @@ export default defineComponent({
     const chainId = inject(injectChainId)!
     const storage = inject(injectStorage)!
     const balance = inject(injectBalance)!
+    const setupEthers = inject(injectSetupEthers)!
 
     const login = async () => {
+      await setupEthers()
       storage.value.isAutoConnected = true
     }
     const logout = async () => {
