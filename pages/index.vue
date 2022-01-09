@@ -1,6 +1,7 @@
 <template lang="pug">
   .some-container
     .logout-container(v-if="isLogin") {{account}} | {{chainId}}
+      h1 balance: {{balance}}
       button(@click="logout") Logout
     button(
       v-else
@@ -15,6 +16,7 @@ import {
   injectAccount,
   injectChainId,
   injectStorage,
+  injectBalance,
 } from '@/lib/context'
 
 export default defineComponent({
@@ -25,6 +27,7 @@ export default defineComponent({
     const account = inject(injectAccount)!
     const chainId = inject(injectChainId)!
     const storage = inject(injectStorage)!
+    const balance = inject(injectBalance)!
 
     const login = async () => {
       storage.value.isConnected = true
@@ -35,6 +38,7 @@ export default defineComponent({
 
     return {
       account,
+      balance,
       chainId,
       isLogin,
       login,
@@ -46,7 +50,7 @@ export default defineComponent({
 
 <style lang="sass" scoped>
 .some-container
-  @apply h-[24px] bg-cyan-900
+  @apply bg-cyan-900
 
   button
     @apply block
